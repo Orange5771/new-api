@@ -48,7 +48,50 @@ var (
 
 	subscriptionPlanCache     *cachex.HybridCache[SubscriptionPlan]
 	subscriptionPlanInfoCache *cachex.HybridCache[SubscriptionPlanInfo]
+
+	subscriptionPurchaseLimitLockMap sync.Map
+	subscriptionPurchaseLimitLockMu  sync.Mutex
 )
+
+type subscriptionPurchaseLimitMutex struct {
+	mu       sync.Mutex
+	refCount int
+}
+
+func lockSubscriptionPurchaseLimit(userId int, planId int) string {
+	key := fmt.Sprintf("%d:%d", userId, planId)
+
+	subscriptionPurchaseLimitLockMu.Lock()
+	var lock *subscriptionPurchaseLimitMutex
+	if value, ok := subscriptionPurchaseLimitLockMap.Load(key); ok {
+		lock = value.(*subscriptionPurchaseLimitMutex)
+	} else {
+		lock = &subscriptionPurchaseLimitMutex{}
+		subscriptionPurchaseLimitLockMap.Store(key, lock)
+	}
+	lock.refCount++
+	subscriptionPurchaseLimitLockMu.Unlock()
+
+	lock.mu.Lock()
+	return key
+}
+
+func unlockSubscriptionPurchaseLimit(key string) {
+	value, ok := subscriptionPurchaseLimitLockMap.Load(key)
+	if !ok {
+		return
+	}
+
+	lock := value.(*subscriptionPurchaseLimitMutex)
+	lock.mu.Unlock()
+
+	subscriptionPurchaseLimitLockMu.Lock()
+	lock.refCount--
+	if lock.refCount == 0 {
+		subscriptionPurchaseLimitLockMap.Delete(key)
+	}
+	subscriptionPurchaseLimitLockMu.Unlock()
+}
 
 func subscriptionPlanCacheTTL() time.Duration {
 	ttlSeconds := common.GetEnvOrDefault("SUBSCRIPTION_PLAN_CACHE_TTL", 300)
@@ -445,6 +488,9 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 		return nil, errors.New("invalid user id")
 	}
 	if plan.MaxPurchasePerUser > 0 {
+		lockKey := lockSubscriptionPurchaseLimit(userId, plan.Id)
+		defer unlockSubscriptionPurchaseLimit(lockKey)
+
 		var count int64
 		if err := tx.Model(&UserSubscription{}).
 			Where("user_id = ? AND plan_id = ?", userId, plan.Id).

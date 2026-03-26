@@ -281,6 +281,29 @@ func createAlipayOrderPayload(c *gin.Context, tradeNo string, scene string, titl
 }
 
 func getAlipayOrderDetailForUser(c *gin.Context, tradeNo string, userId int) (*AlipayOrderDetailResponse, error) {
+	order := model.GetSubscriptionOrderByTradeNo(tradeNo)
+	if order != nil && order.UserId == userId && order.PaymentMethod == service.PaymentMethodAlipayF2F {
+		if err := syncAlipaySubscriptionStatus(c, order); err != nil {
+			return nil, err
+		}
+		order = model.GetSubscriptionOrderByTradeNo(tradeNo)
+		if order == nil {
+			return nil, fmt.Errorf("订单不存在")
+		}
+		payload := service.ParseAlipayOrderPayload(order.ProviderPayload)
+		return &AlipayOrderDetailResponse{
+			TradeNo:     tradeNo,
+			Scene:       service.AlipaySceneSubscription,
+			Title:       payload.Title,
+			QRCode:      payload.QRCode,
+			Status:      order.Status,
+			Amount:      order.Money,
+			ExpiresAt:   payload.ExpiresAt,
+			ReturnTo:    service.NormalizeInternalReturnTo(payload.ReturnTo, queryReturnTo(c)),
+			TradeStatus: getTradeStatusFromPayload(payload),
+		}, nil
+	}
+
 	if topUp := model.GetTopUpByTradeNo(tradeNo); topUp != nil && topUp.UserId == userId && topUp.PaymentMethod == service.PaymentMethodAlipayF2F {
 		if err := syncAlipayTopUpStatus(c, topUp); err != nil {
 			return nil, err
@@ -303,29 +326,7 @@ func getAlipayOrderDetailForUser(c *gin.Context, tradeNo string, userId int) (*A
 		}, nil
 	}
 
-	order := model.GetSubscriptionOrderByTradeNo(tradeNo)
-	if order == nil || order.UserId != userId || order.PaymentMethod != service.PaymentMethodAlipayF2F {
-		return nil, fmt.Errorf("订单不存在")
-	}
-	if err := syncAlipaySubscriptionStatus(c, order); err != nil {
-		return nil, err
-	}
-	order = model.GetSubscriptionOrderByTradeNo(tradeNo)
-	if order == nil {
-		return nil, fmt.Errorf("订单不存在")
-	}
-	payload := service.ParseAlipayOrderPayload(order.ProviderPayload)
-	return &AlipayOrderDetailResponse{
-		TradeNo:     tradeNo,
-		Scene:       service.AlipaySceneSubscription,
-		Title:       payload.Title,
-		QRCode:      payload.QRCode,
-		Status:      order.Status,
-		Amount:      order.Money,
-		ExpiresAt:   payload.ExpiresAt,
-		ReturnTo:    service.NormalizeInternalReturnTo(payload.ReturnTo, queryReturnTo(c)),
-		TradeStatus: getTradeStatusFromPayload(payload),
-	}, nil
+	return nil, fmt.Errorf("订单不存在")
 }
 
 func syncAlipayTopUpStatus(c *gin.Context, topUp *model.TopUp) error {
@@ -343,9 +344,6 @@ func syncAlipayTopUpStatus(c *gin.Context, topUp *model.TopUp) error {
 		case service.IsAlipayTradeExpired(queryResult.TradeStatus):
 			return expireAlipayTopUp(topUp, &payload, queryPayload)
 		}
-	}
-	if payload.ExpiresAt > 0 && time.Now().Unix() > payload.ExpiresAt {
-		return expireAlipayTopUp(topUp, &payload, queryPayload)
 	}
 	return nil
 }
@@ -365,9 +363,6 @@ func syncAlipaySubscriptionStatus(c *gin.Context, order *model.SubscriptionOrder
 		case service.IsAlipayTradeExpired(queryResult.TradeStatus):
 			return expireAlipaySubscription(order, &payload, queryPayload)
 		}
-	}
-	if payload.ExpiresAt > 0 && time.Now().Unix() > payload.ExpiresAt {
-		return expireAlipaySubscription(order, &payload, queryPayload)
 	}
 	return nil
 }
