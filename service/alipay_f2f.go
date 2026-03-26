@@ -381,7 +381,7 @@ func doAlipayRequest(ctx context.Context, method string, bizContent string, noti
 	if err != nil {
 		return fmt.Errorf("create alipay request failed: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
 
 	client := GetHttpClient()
 	if client == nil {
