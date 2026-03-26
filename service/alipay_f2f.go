@@ -261,11 +261,13 @@ func AlipayF2FPrecreate(ctx context.Context, args *AlipayPrecreateArgs) (*Alipay
 
 	var envelope alipayTradePrecreateEnvelope
 	if err := doAlipayRequest(ctx, "alipay.trade.precreate", string(bizContentBytes), strings.TrimSpace(args.NotifyURL), &envelope); err != nil {
+		common.SysError(fmt.Sprintf("alipay precreate request failed for %s: %v", strings.TrimSpace(args.TradeNo), err))
 		return nil, err
 	}
 
 	resp := envelope.Response
 	if resp.Code != "10000" {
+		common.SysError(fmt.Sprintf("alipay precreate rejected for %s: code=%s sub_code=%s msg=%s sub_msg=%s", strings.TrimSpace(args.TradeNo), resp.Code, resp.SubCode, resp.Msg, resp.SubMsg))
 		return nil, fmt.Errorf("支付宝预下单失败: %s %s", common.GetStringIfEmpty(resp.SubCode, resp.Code), common.GetStringIfEmpty(resp.SubMsg, resp.Msg))
 	}
 	if strings.TrimSpace(resp.QRCode) == "" {
