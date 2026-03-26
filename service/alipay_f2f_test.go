@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/setting"
@@ -158,5 +159,37 @@ func TestBuildAlipayPaymentPageURLUsesExplicitBaseURL(t *testing.T) {
 	expected := "https://console.example.com/payment/alipay/TRADE123?return_to=%2Fconsole%2Ftopup%3Ftab%3Dsubscriptions"
 	if actual != expected {
 		t.Fatalf("expected %q, got %q", expected, actual)
+	}
+}
+
+func TestBuildAlipayRequestSignContentIncludesSignType(t *testing.T) {
+	content := buildAlipayRequestSignContent(map[string]string{
+		"app_id":    "2021006137647655",
+		"method":    "alipay.trade.precreate",
+		"sign_type": "RSA2",
+		"sign":      "ignored",
+	})
+
+	if !strings.Contains(content, "sign_type=RSA2") {
+		t.Fatalf("expected request sign content to include sign_type, got %q", content)
+	}
+	if strings.Contains(content, "sign=ignored") {
+		t.Fatalf("expected request sign content to exclude sign, got %q", content)
+	}
+}
+
+func TestBuildAlipayVerifyContentExcludesSignType(t *testing.T) {
+	content := buildAlipayVerifyContent(map[string]string{
+		"app_id":    "2021006137647655",
+		"method":    "alipay.trade.precreate",
+		"sign_type": "RSA2",
+		"sign":      "ignored",
+	})
+
+	if strings.Contains(content, "sign_type=RSA2") {
+		t.Fatalf("expected verify sign content to exclude sign_type, got %q", content)
+	}
+	if strings.Contains(content, "sign=ignored") {
+		t.Fatalf("expected verify sign content to exclude sign, got %q", content)
 	}
 }

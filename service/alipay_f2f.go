@@ -318,7 +318,7 @@ func VerifyAlipayNotification(params map[string]string) error {
 	if err != nil {
 		return err
 	}
-	content := buildAlipaySignContent(params)
+	content := buildAlipayVerifyContent(params)
 	signBytes, err := base64.StdEncoding.DecodeString(sign)
 	if err != nil {
 		return fmt.Errorf("支付宝回调签名解码失败: %w", err)
@@ -363,7 +363,7 @@ func doAlipayRequest(ctx context.Context, method string, bizContent string, noti
 		params["notify_url"] = strings.TrimSpace(notifyURL)
 	}
 
-	signContent := buildAlipaySignContent(params)
+	signContent := buildAlipayRequestSignContent(params)
 	signature, err := signAlipay(signContent, privateKey)
 	if err != nil {
 		return err
@@ -411,7 +411,26 @@ func getAlipayGatewayURL() string {
 	return "https://openapi.alipay.com/gateway.do"
 }
 
-func buildAlipaySignContent(params map[string]string) string {
+func buildAlipayRequestSignContent(params map[string]string) string {
+	keys := make([]string, 0, len(params))
+	for key, value := range params {
+		if key == "sign" {
+			continue
+		}
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, key+"="+params[key])
+	}
+	return strings.Join(parts, "&")
+}
+
+func buildAlipayVerifyContent(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for key, value := range params {
 		if key == "sign" || key == "sign_type" {
