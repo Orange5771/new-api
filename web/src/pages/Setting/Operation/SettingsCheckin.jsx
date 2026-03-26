@@ -27,17 +27,26 @@ import {
   showWarning,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import QuotaUnitField from '../../../components/settings/QuotaUnitField';
+
+const defaultInputs = {
+  'checkin_setting.enabled': false,
+  'checkin_setting.min_quota': 1000,
+  'checkin_setting.max_quota': 10000,
+  // 签到最小值和最大值允许使用不同展示单位，但保存时仍统一落成 quota。
+  'checkin_setting.min_quota_unit': 'TOKENS',
+  'checkin_setting.max_quota_unit': 'TOKENS',
+};
 
 export default function SettingsCheckin(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [inputs, setInputs] = useState({
-    'checkin_setting.enabled': false,
-    'checkin_setting.min_quota': 1000,
-    'checkin_setting.max_quota': 10000,
-  });
+  const [inputs, setInputs] = useState(defaultInputs);
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+
+  const quotaPerUnit = props.options?.QuotaPerUnit;
+  const usdExchangeRate = props.options?.USDExchangeRate;
 
   function handleFieldChange(fieldName) {
     return (value) => {
@@ -81,15 +90,19 @@ export default function SettingsCheckin(props) {
   }
 
   useEffect(() => {
-    const currentInputs = {};
+    const currentInputs = { ...defaultInputs };
     for (let key in props.options) {
-      if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+      if (Object.keys(defaultInputs).includes(key)) {
+        currentInputs[key] =
+          typeof defaultInputs[key] === 'boolean'
+            ? props.options[key] === 'true' || props.options[key] === true
+            : props.options[key];
       }
     }
+    // 回填时把“数值 + 单位”一起恢复，避免刷新后只剩 quota 原值看不懂。
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
-    refForm.current.setValues(currentInputs);
+    refForm.current?.setValues(currentInputs);
   }, [props.options]);
 
   return (
@@ -119,21 +132,49 @@ export default function SettingsCheckin(props) {
                 />
               </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-                <Form.InputNumber
-                  field={'checkin_setting.min_quota'}
+                <QuotaUnitField
                   label={t('签到最小额度')}
+                  value={inputs['checkin_setting.min_quota']}
+                  unit={inputs['checkin_setting.min_quota_unit']}
+                  quotaPerUnit={quotaPerUnit}
+                  usdExchangeRate={usdExchangeRate}
                   placeholder={t('签到奖励的最小额度')}
-                  onChange={handleFieldChange('checkin_setting.min_quota')}
+                  onValueChange={(value) =>
+                    setInputs((current) => ({
+                      ...current,
+                      'checkin_setting.min_quota': String(value),
+                    }))
+                  }
+                  onUnitChange={(value) =>
+                    setInputs((current) => ({
+                      ...current,
+                      'checkin_setting.min_quota_unit': value,
+                    }))
+                  }
                   min={0}
                   disabled={!inputs['checkin_setting.enabled']}
                 />
               </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-                <Form.InputNumber
-                  field={'checkin_setting.max_quota'}
+                <QuotaUnitField
                   label={t('签到最大额度')}
+                  value={inputs['checkin_setting.max_quota']}
+                  unit={inputs['checkin_setting.max_quota_unit']}
+                  quotaPerUnit={quotaPerUnit}
+                  usdExchangeRate={usdExchangeRate}
                   placeholder={t('签到奖励的最大额度')}
-                  onChange={handleFieldChange('checkin_setting.max_quota')}
+                  onValueChange={(value) =>
+                    setInputs((current) => ({
+                      ...current,
+                      'checkin_setting.max_quota': String(value),
+                    }))
+                  }
+                  onUnitChange={(value) =>
+                    setInputs((current) => ({
+                      ...current,
+                      'checkin_setting.max_quota_unit': value,
+                    }))
+                  }
                   min={0}
                   disabled={!inputs['checkin_setting.enabled']}
                 />
