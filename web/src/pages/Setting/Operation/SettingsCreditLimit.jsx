@@ -28,6 +28,7 @@ import {
   showWarning,
 } from '../../../helpers';
 import QuotaUnitField from '../../../components/settings/QuotaUnitField';
+import { normalizeQuotaUnit } from '../../../helpers/quota';
 
 const defaultInputs = {
   QuotaForNewUser: '',
@@ -51,6 +52,34 @@ export default function SettingsCreditLimit(props) {
 
   const quotaPerUnit = props.options?.QuotaPerUnit;
   const usdExchangeRate = props.options?.USDExchangeRate;
+
+  const setFieldValue = (fieldName) => (value) => {
+    setInputs((current) => ({
+      ...current,
+      [fieldName]: String(value),
+    }));
+  };
+
+  const setFieldUnit = (fieldName) => (value) => {
+    setInputs((current) => ({
+      ...current,
+      [fieldName]: value,
+    }));
+  };
+
+  const syncLegacyQuotaUnits = async (legacyUnitUpdates) => {
+    if (!legacyUnitUpdates.length) return;
+    try {
+      await Promise.all(
+        legacyUnitUpdates.map(({ key, value }) =>
+          API.put('/api/option/', { key, value }),
+        ),
+      );
+      props.refresh?.();
+    } catch (error) {
+      // 这里只是做旧配置自愈，失败不影响页面正常编辑。
+    }
+  };
 
   function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow);
@@ -89,18 +118,27 @@ export default function SettingsCreditLimit(props) {
 
   useEffect(() => {
     const currentInputs = { ...defaultInputs };
+    const legacyUnitUpdates = [];
     for (let key in props.options) {
       if (Object.keys(defaultInputs).includes(key)) {
-        currentInputs[key] =
-          typeof defaultInputs[key] === 'boolean'
-            ? props.options[key] === 'true' || props.options[key] === true
-            : props.options[key];
+        if (typeof defaultInputs[key] === 'boolean') {
+          currentInputs[key] = props.options[key] === 'true' || props.options[key] === true;
+        } else if (key.endsWith('_unit')) {
+          const normalizedUnit = normalizeQuotaUnit(props.options[key]);
+          currentInputs[key] = normalizedUnit;
+          if (normalizedUnit !== props.options[key]) {
+            legacyUnitUpdates.push({ key, value: normalizedUnit });
+          }
+        } else {
+          currentInputs[key] = props.options[key];
+        }
       }
     }
     // 页面里既要保留内部 quota，又要保留每个字段自己的展示单位，所以统一从 options 回填。
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
     refForm.current?.setValues(currentInputs);
+    syncLegacyQuotaUnits(legacyUnitUpdates);
   }, [props.options]);
 
   return (
@@ -121,18 +159,8 @@ export default function SettingsCreditLimit(props) {
                   quotaPerUnit={quotaPerUnit}
                   usdExchangeRate={usdExchangeRate}
                   placeholder={''}
-                  onValueChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      QuotaForNewUser: String(value),
-                    })
-                  }
-                  onUnitChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      'quota_setting.new_user_quota_unit': value,
-                    })
-                  }
+                  onValueChange={setFieldValue('QuotaForNewUser')}
+                  onUnitChange={setFieldUnit('quota_setting.new_user_quota_unit')}
                 />
               </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
@@ -144,18 +172,8 @@ export default function SettingsCreditLimit(props) {
                   usdExchangeRate={usdExchangeRate}
                   extraText={t('请求结束后多退少补')}
                   placeholder={''}
-                  onValueChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      PreConsumedQuota: String(value),
-                    })
-                  }
-                  onUnitChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      'quota_setting.pre_consumed_quota_unit': value,
-                    })
-                  }
+                  onValueChange={setFieldValue('PreConsumedQuota')}
+                  onUnitChange={setFieldUnit('quota_setting.pre_consumed_quota_unit')}
                 />
               </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
@@ -166,18 +184,8 @@ export default function SettingsCreditLimit(props) {
                   quotaPerUnit={quotaPerUnit}
                   usdExchangeRate={usdExchangeRate}
                   placeholder={t('例如：2000')}
-                  onValueChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      QuotaForInviter: String(value),
-                    })
-                  }
-                  onUnitChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      'quota_setting.inviter_quota_unit': value,
-                    })
-                  }
+                  onValueChange={setFieldValue('QuotaForInviter')}
+                  onUnitChange={setFieldUnit('quota_setting.inviter_quota_unit')}
                 />
               </Col>
             </Row>
@@ -190,18 +198,8 @@ export default function SettingsCreditLimit(props) {
                   quotaPerUnit={quotaPerUnit}
                   usdExchangeRate={usdExchangeRate}
                   placeholder={t('例如：1000')}
-                  onValueChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      QuotaForInvitee: String(value),
-                    })
-                  }
-                  onUnitChange={(value) =>
-                    setInputs({
-                      ...inputs,
-                      'quota_setting.invitee_quota_unit': value,
-                    })
-                  }
+                  onValueChange={setFieldValue('QuotaForInvitee')}
+                  onUnitChange={setFieldUnit('quota_setting.invitee_quota_unit')}
                 />
               </Col>
             </Row>
@@ -214,10 +212,10 @@ export default function SettingsCreditLimit(props) {
                     '开启后，对免费模型（倍率为0，或者价格为0）的模型也会预消耗额度',
                   )}
                   onChange={(value) =>
-                    setInputs({
-                      ...inputs,
+                    setInputs((current) => ({
+                      ...current,
                       'quota_setting.enable_free_model_pre_consume': value,
-                    })
+                    }))
                   }
                 />
               </Col>

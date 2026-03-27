@@ -1,14 +1,16 @@
 import { getCurrencyConfig } from './render';
 
-export const QUOTA_UNIT_OPTIONS = [
-  { label: 'USD ($)', value: 'USD' },
-  { label: 'CNY (¥)', value: 'CNY' },
-  { label: 'Tokens', value: 'TOKENS' },
+export const QUOTA_UNIT_VALUES = ['USD', 'CNY', 'TOKENS'];
+
+export const getQuotaUnitOptions = (t) => [
+  { label: t('USD ($)'), value: 'USD' },
+  { label: t('CNY (¥)'), value: 'CNY' },
+  { label: t('Tokens'), value: 'TOKENS' },
 ];
 
 // 仅允许有限的展示单位，旧配置或非法值统一回退到内部原生 Tokens。
 export const normalizeQuotaUnit = (unit) => {
-  return ['USD', 'CNY', 'TOKENS'].includes(unit) ? unit : 'TOKENS';
+  return QUOTA_UNIT_VALUES.includes(unit) ? unit : 'TOKENS';
 };
 
 const getStoredUsdExchangeRate = () => {

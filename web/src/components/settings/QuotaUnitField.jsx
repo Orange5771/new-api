@@ -6,10 +6,11 @@ import {
   Select,
   Typography,
 } from '@douyinfe/semi-ui';
+import { useTranslation } from 'react-i18next';
 import {
   amountToQuotaByUnit,
+  getQuotaUnitOptions,
   normalizeQuotaUnit,
-  QUOTA_UNIT_OPTIONS,
   quotaToAmountByUnit,
 } from '../../helpers/quota';
 
@@ -32,6 +33,7 @@ const formatDisplayValue = (value, unit) => {
 };
 
 export default function QuotaUnitField(props) {
+  const { t } = useTranslation();
   const {
     label,
     value,
@@ -48,6 +50,7 @@ export default function QuotaUnitField(props) {
 
   // 当前页面保存的是内部 quota，这里只是在渲染时按所选单位做一次展示换算。
   const currentUnit = normalizeQuotaUnit(unit);
+  const unitOptions = useMemo(() => getQuotaUnitOptions(t), [t]);
   const displayValue = useMemo(() => {
     return formatDisplayValue(
       quotaToAmountByUnit(value, currentUnit, {
@@ -90,7 +93,7 @@ export default function QuotaUnitField(props) {
           onChange={onUnitChange}
           disabled={disabled}
         >
-          {QUOTA_UNIT_OPTIONS.map((option) => (
+          {unitOptions.map((option) => (
             <Select.Option key={option.value} value={option.value}>
               {option.label}
             </Select.Option>

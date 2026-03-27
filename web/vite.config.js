@@ -20,19 +20,24 @@ For commercial licensing, please contact support@quantumnous.com
 import react from '@vitejs/plugin-react';
 import { defineConfig, transformWithEsbuild } from 'vite';
 import pkg from '@douyinfe/vite-plugin-semi';
+import { createRequire } from 'module';
 import path from 'path';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
 const { vitePluginSemi } = pkg;
+const require = createRequire(import.meta.url);
+// Semi 的样式文件不走 package exports，这里从入口文件反推包根目录，避免硬编码 node_modules 路径。
+const semiEntryPath = require.resolve('@douyinfe/semi-ui');
+const semiPackageDir = path.dirname(
+  path.dirname(path.dirname(semiEntryPath)),
+);
+const semiCssPath = path.resolve(semiPackageDir, 'dist/css/semi.css');
 
 // https://vitejs.dev/config/
 export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@douyinfe/semi-ui/dist/css/semi.css': path.resolve(
-        __dirname,
-        './node_modules/@douyinfe/semi-ui/dist/css/semi.css',
-      ),
+      '@douyinfe/semi-ui/dist/css/semi.css': semiCssPath,
     },
   },
   plugins: [

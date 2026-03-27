@@ -28,6 +28,7 @@ import {
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import QuotaUnitField from '../../../components/settings/QuotaUnitField';
+import { normalizeQuotaUnit } from '../../../helpers/quota';
 
 const defaultInputs = {
   'checkin_setting.enabled': false,
@@ -91,18 +92,35 @@ export default function SettingsCheckin(props) {
 
   useEffect(() => {
     const currentInputs = { ...defaultInputs };
+    const legacyUnitUpdates = [];
     for (let key in props.options) {
       if (Object.keys(defaultInputs).includes(key)) {
-        currentInputs[key] =
-          typeof defaultInputs[key] === 'boolean'
-            ? props.options[key] === 'true' || props.options[key] === true
-            : props.options[key];
+        if (typeof defaultInputs[key] === 'boolean') {
+          currentInputs[key] = props.options[key] === 'true' || props.options[key] === true;
+        } else if (key.endsWith('_unit')) {
+          const normalizedUnit = normalizeQuotaUnit(props.options[key]);
+          currentInputs[key] = normalizedUnit;
+          if (normalizedUnit !== props.options[key]) {
+            legacyUnitUpdates.push({ key, value: normalizedUnit });
+          }
+        } else {
+          currentInputs[key] = props.options[key];
+        }
       }
     }
     // 回填时把“数值 + 单位”一起恢复，避免刷新后只剩 quota 原值看不懂。
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
     refForm.current?.setValues(currentInputs);
+    if (legacyUnitUpdates.length) {
+      Promise.all(
+        legacyUnitUpdates.map(({ key, value }) =>
+          API.put('/api/option/', { key, value }),
+        ),
+      ).catch(() => {
+        // 旧单位自愈失败不影响页面正常使用。
+      });
+    }
   }, [props.options]);
 
   return (
