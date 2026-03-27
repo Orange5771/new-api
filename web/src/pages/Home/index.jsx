@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Typography,
@@ -77,6 +77,22 @@ const Home = () => {
   const docsLink = statusState?.status?.docs_link || '';
   const serverAddress =
     statusState?.status?.server_address || `${window.location.origin}`;
+  const normalizedDocsLink =
+    typeof docsLink === 'string' ? docsLink.trim() : '';
+  const docsModuleEnabled = useMemo(() => {
+    const headerNavModulesConfig = statusState?.status?.HeaderNavModules;
+    if (!headerNavModulesConfig) {
+      return true;
+    }
+    try {
+      const modules = JSON.parse(headerNavModulesConfig);
+      // 兼容旧配置：仅在明确关闭 docs 时隐藏首页文档按钮
+      return modules.docs !== false;
+    } catch (error) {
+      console.error('解析顶栏模块配置失败:', error);
+      return true;
+    }
+  }, [statusState?.status?.HeaderNavModules]);
   const endpointItems = API_ENDPOINTS.map((e) => ({ value: e }));
   const [endpointIndex, setEndpointIndex] = useState(0);
   const isChinese = i18n.language.startsWith('zh');
@@ -224,7 +240,7 @@ const Home = () => {
                       {t('获取密钥')}
                     </Button>
                   </Link>
-                  {isDemoSiteMode && statusState?.status?.version ? (
+                  {isDemoSiteMode && statusState?.status?.version && (
                     <Button
                       size={isMobile ? 'default' : 'large'}
                       className='flex items-center !rounded-3xl px-6 py-2'
@@ -238,18 +254,28 @@ const Home = () => {
                     >
                       {statusState.status.version}
                     </Button>
-                  ) : (
-                    docsLink && (
+                  )}
+                  {docsModuleEnabled &&
+                    (normalizedDocsLink ? (
                       <Button
                         size={isMobile ? 'default' : 'large'}
                         className='flex items-center !rounded-3xl px-6 py-2'
                         icon={<IconFile />}
-                        onClick={() => window.open(docsLink, '_blank')}
+                        onClick={() => window.open(normalizedDocsLink, '_blank')}
                       >
                         {t('文档')}
                       </Button>
-                    )
-                  )}
+                    ) : (
+                      <Link to='/docs'>
+                        <Button
+                          size={isMobile ? 'default' : 'large'}
+                          className='flex items-center !rounded-3xl px-6 py-2'
+                          icon={<IconFile />}
+                        >
+                          {t('文档')}
+                        </Button>
+                      </Link>
+                    ))}
                 </div>
 
                 {/* 框架兼容性图标 */}

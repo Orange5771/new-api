@@ -30,8 +30,13 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       about: true,
     };
 
-    // 使用传入的配置或默认配置
-    const modules = headerNavModules || defaultModules;
+    // 与默认配置合并，避免旧配置缺失字段时意外隐藏导航
+    const modules = {
+      ...defaultModules,
+      ...(headerNavModules || {}),
+    };
+    const normalizedDocsLink =
+      typeof docsLink === 'string' ? docsLink.trim() : '';
 
     const allLinks = [
       {
@@ -49,16 +54,18 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'pricing',
         to: '/pricing',
       },
-      ...(docsLink
-        ? [
-            {
-              text: t('文档'),
-              itemKey: 'docs',
+      {
+        text: t('文档'),
+        itemKey: 'docs',
+        ...(normalizedDocsLink
+          ? {
               isExternal: true,
-              externalLink: docsLink,
-            },
-          ]
-        : []),
+              externalLink: normalizedDocsLink,
+            }
+          : {
+              to: '/docs',
+            }),
+      },
       {
         text: t('关于'),
         itemKey: 'about',
@@ -69,7 +76,7 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
     // 根据配置过滤导航链接
     return allLinks.filter((link) => {
       if (link.itemKey === 'docs') {
-        return docsLink && modules.docs;
+        return modules.docs !== false;
       }
       if (link.itemKey === 'pricing') {
         // 支持新的pricing配置格式
