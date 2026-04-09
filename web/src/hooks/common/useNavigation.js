@@ -19,6 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useMemo } from 'react';
 
+const DOCS_HOME_PATH = '/docs/intro/welcome';
+
 export const useNavigation = (t, docsLink, headerNavModules) => {
   const mainNavLinks = useMemo(() => {
     // 默认配置，如果没有传入配置则显示所有模块
@@ -63,7 +65,7 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
               externalLink: normalizedDocsLink,
             }
           : {
-              to: '/docs',
+              to: DOCS_HOME_PATH,
             }),
       },
       {

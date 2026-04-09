@@ -79,6 +79,7 @@ const Home = () => {
     statusState?.status?.server_address || `${window.location.origin}`;
   const normalizedDocsLink =
     typeof docsLink === 'string' ? docsLink.trim() : '';
+  const docsHomePath = '/docs/intro/welcome';
   const docsModuleEnabled = useMemo(() => {
     const headerNavModulesConfig = statusState?.status?.HeaderNavModules;
     if (!headerNavModulesConfig) {
@@ -266,7 +267,7 @@ const Home = () => {
                         {t('文档')}
                       </Button>
                     ) : (
-                      <Link to='/docs'>
+                      <Link to={docsHomePath}>
                         <Button
                           size={isMobile ? 'default' : 'large'}
                           className='flex items-center !rounded-3xl px-6 py-2'
